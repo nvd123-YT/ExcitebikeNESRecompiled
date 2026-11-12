@@ -1,0 +1,150 @@
+name: Cross-platform source validation and releases
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    name: Validate (${ matrix.name })
+    runs-on: ${ matrix.os }
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS ARM64
+            os: macos-15
+          - name: Windows x64
+            os: windows-2022
+          - name: Linux x64
+            os: ubuntu-24.04
+
+    steps:
+      - name: Checkout project and pinned dependencies
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Linux native compiler and window/audio development headers
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgl-dev libx11-dev \
+            libxext-dev libxrandr-dev libxcursor-dev libxinerama-dev libxi-dev \
+            libxfixes-dev libxss-dev libasound2-dev libpulse-dev libwayland-dev \
+            libxkbcommon-dev libdbus-1-dev libudev-dev
+
+      - name: Bootstrap portable CMake and Python (macOS/Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash setup.sh
+
+      - name: Bootstrap portable CMake and Python (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: setup.bat
+
+      - name: Create synthetic NROM test cartridge
+        shell: bash
+        run: |
+          PYTHON="$(cat .tools/python-path.txt)"
+          "$PYTHON" tests/create_smoke_rom.py --output "$RUNNER_TEMP/excitebike-ci-smoke.nes"
+
+      - name: Configure graphical runner and recomp-ui (macOS/Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          CMAKE="$(cat .tools/cmake-path.txt)"
+          PYTHON="$(cat .tools/python-path.txt)"
+          export PATH="$(dirname "$PYTHON"):$PATH"
+          "$CMAKE" -S . -B build-ci -DCMAKE_BUILD_TYPE=Release \
+            -DNESRECOMP_ROM="$RUNNER_TEMP/excitebike-ci-smoke.nes"
+
+      - name: Build graphical runner and recomp-ui (macOS/Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          CMAKE="$(cat .tools/cmake-path.txt)"
+          "$CMAKE" --build build-ci --parallel 4
+
+      - name: Run native-code smoke test (macOS/Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          ./build-ci/ExcitebikeRecomp "$RUNNER_TEMP/excitebike-ci-smoke.nes" --frames 120
+
+      - name: Configure graphical runner and recomp-ui (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $CMake = (Get-Content -Path ".tools/cmake-path.txt" -Raw).Trim()
+          $Python = (Get-Content -Path ".tools/python-path.txt" -Raw).Trim()
+          $env:PATH = "$(Split-Path $Python);$env:PATH"
+          $Rom = Join-Path $env:RUNNER_TEMP "excitebike-ci-smoke.nes"
+          & $CMake -S . -B build-ci "-DNESRECOMP_ROM=$Rom"
+          if ($LASTEXITCODE -ne 0) { throw "CMake configure failed: $LASTEXITCODE" }
+
+      - name: Build graphical runner and recomp-ui (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $CMake = (Get-Content -Path ".tools/cmake-path.txt" -Raw).Trim()
+          & $CMake --build build-ci --config Release --parallel 4
+          if ($LASTEXITCODE -ne 0) { throw "Build failed: $LASTEXITCODE" }
+
+      - name: Run native-code smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $Rom = Join-Path $env:RUNNER_TEMP "excitebike-ci-smoke.nes"
+          $Exe = Join-Path $PWD "build-ci/Release/ExcitebikeRecomp.exe"
+          & $Exe $Rom --frames 120
+          if ($LASTEXITCODE -ne 0) { throw "Smoke test failed: $LASTEXITCODE" }
+
+  publish-source:
+    name: Publish unique source release
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout project and pinned dependencies
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python for source packaging
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Package source-only release
+        run: |
+          python tools/package_source.py \
+            --output "$RUNNER_TEMP/ExcitebikeNESRecompiled-source.zip"
+
+      - name: Create a new release for this push
+        env:
+          GH_TOKEN: ${ github.token }
+        shell: bash
+        run: |
+          TAG="source-${ github.run_number }-${ github.run_attempt }-${ github.sha }"
+          TITLE="Source build #${ github.run_number } (${ github.sha } | cut -c1-7)"
+          NOTES="Cross-platform source snapshot for ExcitebikeNESRecompiled.
+
+This release includes the project source and pinned build dependencies, plus scripts that bootstrap portable CMake and Python. It does not include an Excitebike ROM, ROM-derived native game code, or a playable game binary. Supply your own compatible ROM and build locally using README.md.
+
+All three CI jobs (macOS ARM64, Windows x64, Linux x64) passed using a synthetic NROM test cartridge."
+          gh release create "$TAG" \
+            "$RUNNER_TEMP/ExcitebikeNESRecompiled-source.zip" \
+            --target "$GITHUB_SHA" \
+            --title "$TITLE" \
+            --notes "$NOTES" \
+            --latest
