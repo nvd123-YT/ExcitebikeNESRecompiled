@@ -33,7 +33,9 @@ The launcher extracts these resources into the user's application data directory
 
 The NES still runs its real hardware picture at **256×240**. The game now supplies a wide-view compositor that uses NESRecomp's recorded per-scanline PPU scroll, nametable, CHR and sprite state to draw the surrounding background. It does not stretch the original picture: the central 256×240 gameplay area is copied from the native frame unchanged, while the side margins are an experimental reconstruction. Scene transitions or mid-frame palette effects may therefore leave the extra margins less exact than the original viewport. The in-game settings panel wraps longer descriptions and keeps section navigation clickable in both narrow and wide layouts.
 
-- **In-game menu:** press Escape and open **Display**. **View mode** selects Native, 16:9 Fixed or Adaptive; **HD resolution** selects the rendering scale for a compatible Mesen texture pack. Adaptive follows the window's aspect ratio, up to the engine's 32:9 limit.
+- **Pre-game recomp-ui launcher:** open **Settings → Display** before choosing **PLAY**. **Widescreen** offers Native, 16:9 Fixed and Adaptive; the choice is saved to the game's `ViewMode` setting.
+- **Pre-game recomp-ui launcher:** **HD resolution** offers Pack resolution and 1× through 64× output scales for a compatible Mesen HD texture pack. This setting is saved to `HDResolution`; it does not change the original NES framebuffer.
+- **In-game runtime menu:** press Escape and open **Display**. **View mode** and **HD resolution** remain available there as well. Adaptive follows the window's aspect ratio, up to the engine's 32:9 limit.
 - **Developer option:** `--widescreen stock|16:9|21:9|32:9|fit` selects a presentation mode directly.
 - **Integer scaling:** remains available for crisp whole-pixel scaling of the original NES image.
 
