@@ -1,3 +1,67 @@
+# Apply the small launcher capability bridge missing from the pinned NESRecomp revision.
+# Keep the upstream submodule immutable in Git; the patch is reproducibly applied at configure time.
+set(_nes_ui_launcher "${NESRECOMP_ROOT}/runner/cyc/cyc_ui_launcher.c")
+if(NOT EXISTS "${_nes_ui_launcher}")
+    message(FATAL_ERROR "Pinned NESRecomp launcher source is missing: ${_nes_ui_launcher}")
+endif()
+
+file(READ "${_nes_ui_launcher}" _nes_ui_source)
+set(_nes_ui_original "${_nes_ui_source}")
+
+if(NOT _nes_ui_source MATCHES "io->widescreen = s->view_mode != 0;")
+    set(_old "    io->linear_filter = s->linear_filter;\n")
+    set(_new "    io->linear_filter = s->linear_filter;\n    io->widescreen = s->view_mode != 0;\n")
+    string(FIND "${_nes_ui_source}" "${_old}" _at)
+    if(_at EQUAL -1)
+        message(FATAL_ERROR "Cannot patch NESRecomp launcher: linear-filter settings hook changed.")
+    endif()
+    string(REPLACE "${_old}" "${_new}" _nes_ui_source "${_nes_ui_source}")
+endif()
+
+string(FIND "${_nes_ui_source}" "    if (!io->widescreen) s->view_mode = 0;" _widescreen_restore_at)
+if(_widescreen_restore_at EQUAL -1)
+    set(_old "    s->linear_filter = io->linear_filter != 0;\n")
+    set(_new "    s->linear_filter = io->linear_filter != 0;\n    if (!io->widescreen) s->view_mode = 0;\n    else if (s->view_mode == 0) s->view_mode = 1;\n")
+    string(FIND "${_nes_ui_source}" "${_old}" _at)
+    if(_at EQUAL -1)
+        message(FATAL_ERROR "Cannot patch NESRecomp launcher: linear-filter restore hook changed.")
+    endif()
+    string(REPLACE "${_old}" "${_new}" _nes_ui_source "${_nes_ui_source}")
+endif()
+
+if(NOT _nes_ui_source MATCHES "gi.widescreen_supported = extras")
+    set(_old "    gi.widescreen_supported = 0;\n")
+    set(_new "    gi.widescreen_supported = extras && (extras->view_modes & (1u << 1));\n")
+    string(FIND "${_nes_ui_source}" "${_old}" _at)
+    if(_at EQUAL -1)
+        message(FATAL_ERROR "Cannot patch NESRecomp launcher: widescreen capability hook changed.")
+    endif()
+    string(REPLACE "${_old}" "${_new}" _nes_ui_source "${_nes_ui_source}")
+endif()
+
+string(FIND "${_nes_ui_source}" "    (void)extras;\n" _unused_extras_at)
+if(NOT _unused_extras_at EQUAL -1)
+    string(REPLACE "    (void)extras;\n" "" _nes_ui_source "${_nes_ui_source}")
+endif()
+
+string(FIND "${_nes_ui_source}" "extras->set_view_mode(extras->ctx, settings->view_mode)" _apply_view_mode_at)
+if(_apply_view_mode_at EQUAL -1)
+    set(_old "    from_launcher(&io, settings, shortcuts, count);\n")
+    set(_new "    from_launcher(&io, settings, shortcuts, count);\n    if (extras && extras->set_view_mode)\n        (void)extras->set_view_mode(extras->ctx, settings->view_mode);\n")
+    string(FIND "${_nes_ui_source}" "${_old}" _at)
+    if(_at EQUAL -1)
+        message(FATAL_ERROR "Cannot patch NESRecomp launcher: settings-return hook changed.")
+    endif()
+    string(REPLACE "${_old}" "${_new}" _nes_ui_source "${_nes_ui_source}")
+endif()
+
+if(NOT _nes_ui_source STREQUAL _nes_ui_original)
+    file(WRITE "${_nes_ui_launcher}" "${_nes_ui_source}")
+endif()
+
+message(STATUS "Excitebike: enabled recomp-ui widescreen setting bridge in pinned NESRecomp")
+
+
 # Apply small, deterministic fixes to the pinned cycle runtime UI sources.
 # The upstream submodules stay immutable in Git; this patch is applied before
 # their targets are configured and compiled.
@@ -166,6 +230,24 @@ endif()
 
 if(NOT _runtime_source STREQUAL _runtime_original)
     file(WRITE "${_runtime_ui}" "${_runtime_source}")
+endif()
+
+
+# Keep the HD texture-pack output-scale selector with the other Display options.
+# This is the HD-pack rendering scale, not a claim that the NES framebuffer changes size.
+set(_old_hd_row "add(\"cyc.hd.resolution\", \"Graphics\", \"HD resolution\",")
+set(_new_hd_row "add(\"cyc.hd.resolution\", \"Display\", \"HD resolution\",")
+string(FIND "${_cycle_source}" "${_old_hd_row}" _hd_row_old_at)
+if(NOT _hd_row_old_at EQUAL -1)
+    string(REPLACE "${_old_hd_row}" "${_new_hd_row}" _cycle_source "${_cycle_source}")
+else()
+    string(FIND "${_cycle_source}" "${_new_hd_row}" _hd_row_new_at)
+    if(_hd_row_new_at EQUAL -1)
+        message(FATAL_ERROR "Cannot patch NESRecomp runtime menu: HD resolution row changed.")
+    endif()
+endif()
+if(NOT _cycle_source STREQUAL _cycle_original)
+    file(WRITE "${_cycle_menu}" "${_cycle_source}")
 endif()
 
 message(STATUS "Excitebike: in-game Display → View mode registered")
