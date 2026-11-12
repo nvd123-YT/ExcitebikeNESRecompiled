@@ -7,6 +7,20 @@ $CMakeVersion = "3.31.6"
 $UvVersion = "0.6.14"
 $PythonVersion = "3.12.9"
 
+function Download-ReleaseAsset([string]$Uri, [string]$Destination, [string]$Label) {
+    $Curl = Get-Command curl.exe -ErrorAction Stop
+    Write-Host "Downloading $Label..."
+    & $Curl.Source --fail --location --retry 3 --retry-delay 2 --connect-timeout 30 --max-time 420 --progress-bar --output $Destination $Uri
+    if ($LASTEXITCODE -ne 0) {
+        throw "Download failed for $Label (curl exit code $LASTEXITCODE)."
+    }
+    if (-not (Test-Path $Destination) -or (Get-Item $Destination).Length -le 0) {
+        throw "Download produced an empty file: $Label"
+    }
+    $SizeMiB = (Get-Item $Destination).Length / 1MB
+    Write-Host ("Downloaded {0}: {1:N1} MiB" -f $Label, $SizeMiB)
+}
+
 New-Item -ItemType Directory -Force -Path $Tools, $Downloads, (Join-Path $Tools "cmake"), (Join-Path $Tools "uv"), (Join-Path $Tools "python"), (Join-Path $Tools "bin") | Out-Null
 
 function Get-FirstFile([string]$Path, [string]$Name) {
@@ -23,8 +37,8 @@ if (-not $CMakeBin) {
     $CMakeChecksUrl = "https://github.com/Kitware/CMake/releases/download/v$CMakeVersion/cmake-$CMakeVersion-SHA-256.txt"
     $ArchivePath = Join-Path $Downloads $CMakeArchive
     $ChecksPath = Join-Path $Downloads "cmake-checksums.txt"
-    Invoke-WebRequest -Uri $CMakeUrl -OutFile $ArchivePath
-    Invoke-WebRequest -Uri $CMakeChecksUrl -OutFile $ChecksPath
+    Download-ReleaseAsset $CMakeUrl $ArchivePath "CMake archive"
+    Download-ReleaseAsset $CMakeChecksUrl $ChecksPath "CMake SHA-256 checksums"
     $Line = Get-Content $ChecksPath | Where-Object { $_ -match ("\s\*?" + [regex]::Escape($CMakeArchive) + "$") } | Select-Object -First 1
     if (-not $Line) { throw "CMake checksum entry not found." }
     $Expected = ($Line -split "\s+")[0].ToLowerInvariant()
@@ -43,8 +57,8 @@ if (-not $UvBin) {
     $UvArchive = "uv-x86_64-pc-windows-msvc.zip"
     $UvUrl = "https://github.com/astral-sh/uv/releases/download/$UvVersion/$UvArchive"
     $ArchivePath = Join-Path $Downloads $UvArchive
-    Invoke-WebRequest -Uri $UvUrl -OutFile $ArchivePath
-    Invoke-WebRequest -Uri "$UvUrl.sha256" -OutFile "$ArchivePath.sha256"
+    Download-ReleaseAsset $UvUrl $ArchivePath "uv archive"
+    Download-ReleaseAsset "$UvUrl.sha256" "$ArchivePath.sha256" "uv SHA-256 checksum"
     $Expected = ((Get-Content "$ArchivePath.sha256" -Raw) -split "\s+")[0].ToLowerInvariant()
     $Actual = (Get-FileHash -Algorithm SHA256 $ArchivePath).Hash.ToLowerInvariant()
     if ($Expected -ne $Actual) { throw "uv archive checksum mismatch." }
