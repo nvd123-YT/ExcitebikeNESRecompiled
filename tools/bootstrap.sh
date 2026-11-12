@@ -108,6 +108,15 @@ if [ ! -x /usr/bin/clang ] && ! command -v cc >/dev/null 2>&1; then
   fail "A native C/C++ compiler is required. Install Xcode Command Line Tools or your platform's compiler."
 fi
 
+if [ "$OS" = "Darwin" ] && command -v xattr >/dev/null 2>&1; then
+  echo "[macOS] Clearing quarantine metadata only from checksum-verified bundled developer tools..."
+  for tool_dir in "$TOOLS/cmake" "$TOOLS/uv" "$TOOLS/python"; do
+    if [ -d "$tool_dir" ]; then
+      xattr -dr com.apple.quarantine "$tool_dir" 2>/dev/null || true
+    fi
+  done
+fi
+
 echo "Bootstrap complete."
 echo "Portable CMake: $CMAKE_BIN"
 echo "Managed Python: $PYTHON_BIN"

@@ -79,6 +79,23 @@ def find_tool(search_root: Path, names: tuple[str, ...]) -> Path:
     )
 
 
+def clear_macos_quarantine(paths: tuple[Path, ...]) -> None:
+    """Remove Gatekeeper quarantine only from bundled, checksum-verified build tools."""
+    if sys.platform != "darwin":
+        return
+    xattr = Path("/usr/bin/xattr")
+    if not xattr.is_file():
+        return
+    for path in paths:
+        if path.exists():
+            subprocess.run(
+                [str(xattr), "-dr", "com.apple.quarantine", str(path)],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+
 class ExcitebikeBuilder:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
@@ -234,6 +251,9 @@ class ExcitebikeBuilder:
                 marker.write_text(digest, encoding="utf-8")
 
             tools_root = project_root / ".tools"
+            if sys.platform == "darwin":
+                self._emit("log", "Clearing Gatekeeper quarantine only from the bundled, checksum-verified developer tools…")
+                clear_macos_quarantine((tools_root / "cmake", tools_root / "python", tools_root / "uv"))
             cmake = find_tool(tools_root / "cmake", ("cmake.exe", "cmake"))
             python = find_tool(tools_root / "python", ("python.exe", "python3.12", "python3", "python"))
             if os.name != "nt":

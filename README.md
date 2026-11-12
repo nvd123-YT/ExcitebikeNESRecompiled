@@ -25,7 +25,7 @@ Each platform package contains the launcher UI and its local-build resources:
 - The Excitebike CMake integration and game configuration.
 - SDL2 is built statically as part of the local game build.
 
-The launcher extracts these resources into the user's application data directory, asks for a local ROM, runs CMake, compiles the native game, and starts it. The build directory and game saves stay on the user's computer and are not removed when the launcher closes.
+The launcher extracts these resources into the user's application data directory, clears macOS Gatekeeper quarantine only from the bundled, checksum-verified CMake/Python tool folders, asks for a local ROM, runs CMake, compiles the native game, and starts it. The build directory and game saves stay on the user's computer and are not removed when the launcher closes.
 
 ## Operating-system requirements
 
