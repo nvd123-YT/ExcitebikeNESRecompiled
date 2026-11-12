@@ -65,6 +65,13 @@ def safe_extract_payload(archive_path: Path, destination: Path) -> None:
 
 
 def find_tool(search_root: Path, names: tuple[str, ...]) -> Path:
+    # The macOS CMake wheel contains a real, relocatable CLI binary here.
+    # Prefer it over the generated Python console-script wrapper in bin/.
+    if "cmake" in names:
+        wheel_binary = search_root / "cmake" / "data" / "bin" / "cmake"
+        if wheel_binary.is_file():
+            return wheel_binary
+
     for name in names:
         matches = sorted(search_root.rglob(name))
         for match in matches:
