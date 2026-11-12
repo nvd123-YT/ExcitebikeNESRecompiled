@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
