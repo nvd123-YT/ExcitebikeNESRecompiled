@@ -138,11 +138,12 @@ jobs:
           TAG="source-$GITHUB_RUN_NUMBER-$GITHUB_RUN_ATTEMPT-$GITHUB_SHA"
           SHORT_SHA="$(printf '%s' "$GITHUB_SHA" | cut -c1-7)"
           TITLE="Source build #$GITHUB_RUN_NUMBER ($SHORT_SHA)"
-          NOTES="Cross-platform source snapshot for ExcitebikeNESRecompiled.
-
-This release includes the project source and pinned build dependencies, plus scripts that bootstrap portable CMake and Python. It does not include an Excitebike ROM, ROM-derived native game code, or a playable game binary. Supply your own compatible ROM and build locally using README.md.
-
-All three CI jobs (macOS ARM64, Windows x64, Linux x64) passed using a synthetic NROM test cartridge."
+          NOTES="$(printf '%s\n' \
+            'Cross-platform source snapshot for ExcitebikeNESRecompiled.' \
+            '' \
+            'This release includes project source and pinned build dependencies, plus scripts that bootstrap portable CMake and Python. It does not include an Excitebike ROM, ROM-derived native game code, or a playable game binary. Supply your own compatible ROM and build locally using README.md.' \
+            '' \
+            'All three CI jobs (macOS ARM64, Windows x64, Linux x64) passed using a synthetic NROM test cartridge.')"
           gh release create "$TAG" \
             "$RUNNER_TEMP/ExcitebikeNESRecompiled-source.zip" \
             --target "$GITHUB_SHA" \
