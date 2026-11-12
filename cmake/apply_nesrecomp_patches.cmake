@@ -1,66 +1,77 @@
-# Apply the small launcher capability bridge missing from the pinned NESRecomp revision.
-# Keep the upstream submodule immutable in Git; the patch is reproducibly applied at configure time.
-set(_nes_ui_launcher "${NESRECOMP_ROOT}/runner/cyc/cyc_ui_launcher.c")
-if(NOT EXISTS "${_nes_ui_launcher}")
-    message(FATAL_ERROR "Pinned NESRecomp launcher source is missing: ${_nes_ui_launcher}")
+# Expose the cycle host's view-mode and HD-pack scale in the pre-game recomp-ui launcher.
+# The in-game runtime menu is a separate UI and is patched below.
+set(_nes_ui_launcher "\${NESRECOMP_ROOT}/runner/cyc/cyc_ui_launcher.c")
+if(NOT EXISTS "\${_nes_ui_launcher}")
+    message(FATAL_ERROR "Pinned NESRecomp launcher source is missing: \${_nes_ui_launcher}")
 endif()
 
-file(READ "${_nes_ui_launcher}" _nes_ui_source)
-set(_nes_ui_original "${_nes_ui_source}")
+file(READ "\${_nes_ui_launcher}" _nes_ui_source)
+set(_nes_ui_original "\${_nes_ui_source}")
 
-if(NOT _nes_ui_source MATCHES "io->widescreen = s->view_mode != 0;")
-    set(_old "    io->linear_filter = s->linear_filter;\n")
-    set(_new "    io->linear_filter = s->linear_filter;\n    io->widescreen = s->view_mode != 0;\n")
-    string(FIND "${_nes_ui_source}" "${_old}" _at)
+# The launcher supports a game-authored aspect vocabulary. This is what its
+# Display -> Widescreen row actually renders; widescreen_supported alone is
+# not consumed by the pinned launcher_ng Display renderer.
+if(NOT _nes_ui_source MATCHES "s_view_mode_labels\\[\\]")
+    set(_old "    static const char *const FDS_PATTERNS[] = { \\"*.fds\\", \\"*.qd\\" };\\n")
+    set(_new "    static const char *const FDS_PATTERNS[] = { \\"*.fds\\", \\"*.qd\\" };\\n    static const char *const s_view_mode_labels[] = { \\"Native\\", \\"16:9 Fixed\\", \\"Adaptive\\" };\\n#ifdef NESRECOMP_CYCLE_HDPACK\\n    static const int s_hd_resolution_values[] = { 0, 1, 2, 4, 8, 16, 32, 64 };\\n    static const char *const s_hd_resolution_labels[] = { \\"Pack resolution\\", \\"1×\\", \\"2×\\", \\"4×\\", \\"8×\\", \\"16×\\", \\"32× (Experimental)\\", \\"64× (Experimental)\\" };\\n#endif\\n")
+    string(FIND "\${_nes_ui_source}" "\${_old}" _at)
     if(_at EQUAL -1)
-        message(FATAL_ERROR "Cannot patch NESRecomp launcher: linear-filter settings hook changed.")
+        message(FATAL_ERROR "Cannot patch NESRecomp launcher: static UI vocabulary insertion point changed.")
     endif()
-    string(REPLACE "${_old}" "${_new}" _nes_ui_source "${_nes_ui_source}")
+    string(REPLACE "\${_old}" "\${_new}" _nes_ui_source "\${_nes_ui_source}")
 endif()
 
-string(FIND "${_nes_ui_source}" "    if (!io->widescreen) s->view_mode = 0;" _widescreen_restore_at)
-if(_widescreen_restore_at EQUAL -1)
-    set(_old "    s->linear_filter = io->linear_filter != 0;\n")
-    set(_new "    s->linear_filter = io->linear_filter != 0;\n    if (!io->widescreen) s->view_mode = 0;\n    else if (s->view_mode == 0) s->view_mode = 1;\n")
-    string(FIND "${_nes_ui_source}" "${_old}" _at)
+# Round-trip the host's existing ViewMode value through recomp-ui's aspect
+# selector and its existing internal_resolution field through the HD scale list.
+if(NOT _nes_ui_source MATCHES "io->aspect_index = s->view_mode;")
+    set(_old "    io->linear_filter = s->linear_filter;\\n")
+    set(_new "    io->linear_filter = s->linear_filter;\\n    io->aspect_index = s->view_mode;\\n#ifdef NESRECOMP_CYCLE_HDPACK\\n    io->internal_resolution = s->hd_resolution;\\n#endif\\n")
+    string(FIND "\${_nes_ui_source}" "\${_old}" _at)
     if(_at EQUAL -1)
-        message(FATAL_ERROR "Cannot patch NESRecomp launcher: linear-filter restore hook changed.")
+        message(FATAL_ERROR "Cannot patch NESRecomp launcher: to-launcher Display hook changed.")
     endif()
-    string(REPLACE "${_old}" "${_new}" _nes_ui_source "${_nes_ui_source}")
+    string(REPLACE "\${_old}" "\${_new}" _nes_ui_source "\${_nes_ui_source}")
 endif()
 
-if(NOT _nes_ui_source MATCHES "gi.widescreen_supported = extras")
-    set(_old "    gi.widescreen_supported = 0;\n")
-    set(_new "    gi.widescreen_supported = extras && (extras->view_modes & (1u << 1));\n")
-    string(FIND "${_nes_ui_source}" "${_old}" _at)
+if(NOT _nes_ui_source MATCHES "s->view_mode = io->aspect_index")
+    set(_old "    s->linear_filter = io->linear_filter != 0;\\n")
+    set(_new "    s->linear_filter = io->linear_filter != 0;\\n    s->view_mode = io->aspect_index < 0 ? 0 : io->aspect_index > 2 ? 2 : io->aspect_index;\\n#ifdef NESRECOMP_CYCLE_HDPACK\\n    s->hd_resolution = (io->internal_resolution == 1 || io->internal_resolution == 2 || io->internal_resolution == 4 || io->internal_resolution == 8 || io->internal_resolution == 16 || io->internal_resolution == 32 || io->internal_resolution == 64) ? io->internal_resolution : 0;\\n#endif\\n")
+    string(FIND "\${_nes_ui_source}" "\${_old}" _at)
     if(_at EQUAL -1)
-        message(FATAL_ERROR "Cannot patch NESRecomp launcher: widescreen capability hook changed.")
+        message(FATAL_ERROR "Cannot patch NESRecomp launcher: from-launcher Display hook changed.")
     endif()
-    string(REPLACE "${_old}" "${_new}" _nes_ui_source "${_nes_ui_source}")
+    string(REPLACE "\${_old}" "\${_new}" _nes_ui_source "\${_nes_ui_source}")
 endif()
 
-string(FIND "${_nes_ui_source}" "    (void)extras;\n" _unused_extras_at)
-if(NOT _unused_extras_at EQUAL -1)
-    string(REPLACE "    (void)extras;\n" "" _nes_ui_source "${_nes_ui_source}")
+set(_old "    gi.widescreen_supported = 0;\\n    (void)extras;\\n")
+set(_new "    gi.widescreen_supported = 0; /* use the explicit aspect vocabulary below */\\n    gi.aspect_labels = s_view_mode_labels;\\n    gi.num_aspect_labels = (int)(sizeof(s_view_mode_labels) / sizeof(s_view_mode_labels[0]));\\n    gi.aspect_setting_label = \\"Widescreen\\";\\n    gi.aspect_setting_help = \\"Native keeps the original NES viewport. 16:9 Fixed expands the presentation; Adaptive follows the window. The added side margins are experimental.\\";\\n    gi.aspect_experimental = 1;\\n#ifdef NESRECOMP_CYCLE_HDPACK\\n    gi.has_supersampling = 1;\\n    gi.internal_resolution_labels = s_hd_resolution_labels;\\n    gi.internal_resolution_values = s_hd_resolution_values;\\n    gi.num_internal_resolutions = (int)(sizeof(s_hd_resolution_values) / sizeof(s_hd_resolution_values[0]));\\n    gi.internal_resolution_note = \\"Controls the output scale of a compatible Mesen HD texture pack. The native 256x240 NES image is unchanged.\\";\\n#endif\\n")
+string(FIND "\${_nes_ui_source}" "\${_old}" _capability_at)
+if(NOT _capability_at EQUAL -1)
+    string(REPLACE "\${_old}" "\${_new}" _nes_ui_source "\${_nes_ui_source}")
+else()
+    string(FIND "\${_nes_ui_source}" "gi.aspect_labels = s_view_mode_labels;" _capability_new_at)
+    if(_capability_new_at EQUAL -1)
+        message(FATAL_ERROR "Cannot patch NESRecomp launcher: game display capability hook changed.")
+    endif()
 endif()
 
-string(FIND "${_nes_ui_source}" "extras->set_view_mode(extras->ctx, settings->view_mode)" _apply_view_mode_at)
+string(FIND "\${_nes_ui_source}" "extras->set_view_mode(extras->ctx, settings->view_mode)" _apply_view_mode_at)
 if(_apply_view_mode_at EQUAL -1)
-    set(_old "    from_launcher(&io, settings, shortcuts, count);\n")
-    set(_new "    from_launcher(&io, settings, shortcuts, count);\n    if (extras && extras->set_view_mode)\n        (void)extras->set_view_mode(extras->ctx, settings->view_mode);\n")
-    string(FIND "${_nes_ui_source}" "${_old}" _at)
+    set(_old "    from_launcher(&io, settings, shortcuts, count);\\n")
+    set(_new "    from_launcher(&io, settings, shortcuts, count);\\n    if (extras && extras->set_view_mode)\\n        (void)extras->set_view_mode(extras->ctx, settings->view_mode);\\n")
+    string(FIND "\${_nes_ui_source}" "\${_old}" _at)
     if(_at EQUAL -1)
         message(FATAL_ERROR "Cannot patch NESRecomp launcher: settings-return hook changed.")
     endif()
-    string(REPLACE "${_old}" "${_new}" _nes_ui_source "${_nes_ui_source}")
+    string(REPLACE "\${_old}" "\${_new}" _nes_ui_source "\${_nes_ui_source}")
 endif()
 
 if(NOT _nes_ui_source STREQUAL _nes_ui_original)
-    file(WRITE "${_nes_ui_launcher}" "${_nes_ui_source}")
+    file(WRITE "\${_nes_ui_launcher}" "\${_nes_ui_source}")
 endif()
 
-message(STATUS "Excitebike: enabled recomp-ui widescreen setting bridge in pinned NESRecomp")
-
+message(STATUS "Excitebike: pre-game recomp-ui Display → Widescreen registered")
+message(STATUS "Excitebike: pre-game recomp-ui HD resolution scale registered")
 
 # Apply small, deterministic fixes to the pinned cycle runtime UI sources.
 # The upstream submodules stay immutable in Git; this patch is applied before
@@ -248,6 +259,69 @@ else()
 endif()
 if(NOT _cycle_source STREQUAL _cycle_original)
     file(WRITE "${_cycle_menu}" "${_cycle_source}")
+endif()
+
+
+# Give the generic resolution-vocabulary control the accurate title and help
+# for this host: it selects the Mesen HD-pack output scale, not NES framebuffer
+# or generic game-internal resolution.
+set(_launcher_imgui "\${NESRECOMP_RECOMP_UI}/src/common/backends/imgui/launcher_imgui.cpp")
+if(NOT EXISTS "\${_launcher_imgui}")
+    message(FATAL_ERROR "Pinned recomp-ui launcher renderer is missing: \${_launcher_imgui}")
+endif()
+file(READ "\${_launcher_imgui}" _launcher_imgui_source)
+set(_launcher_imgui_original "\${_launcher_imgui_source}")
+
+set(_old_resolution_label "settings_fit_w(\\"Internal resolution\\", th, settings_widest_text(")
+set(_new_resolution_label "settings_fit_w(\\"HD resolution\\", th, settings_widest_text(")
+string(FIND "\${_launcher_imgui_source}" "\${_old_resolution_label}" _resolution_label_at)
+if(NOT _resolution_label_at EQUAL -1)
+    string(REPLACE "\${_old_resolution_label}" "\${_new_resolution_label}" _launcher_imgui_source "\${_launcher_imgui_source}")
+else()
+    string(FIND "\${_launcher_imgui_source}" "\${_new_resolution_label}" _resolution_label_new_at)
+    if(_resolution_label_new_at EQUAL -1)
+        message(FATAL_ERROR "Cannot patch recomp-ui launcher: internal resolution label hook changed.")
+    endif()
+endif()
+
+set(_old_resolution_row "row_label_right(\\"Internal resolution\\", th, iw);")
+set(_new_resolution_row "row_label_right(\\"HD resolution\\", th, iw);")
+string(FIND "\${_launcher_imgui_source}" "\${_old_resolution_row}" _resolution_row_at)
+if(NOT _resolution_row_at EQUAL -1)
+    string(REPLACE "\${_old_resolution_row}" "\${_new_resolution_row}" _launcher_imgui_source "\${_launcher_imgui_source}")
+else()
+    string(FIND "\${_launcher_imgui_source}" "\${_new_resolution_row}" _resolution_row_new_at)
+    if(_resolution_row_new_at EQUAL -1)
+        message(FATAL_ERROR "Cannot patch recomp-ui launcher: HD resolution row label hook changed.")
+    endif()
+endif()
+
+set(_old_resolution_help [=[
+                "Renders the game at this height, not an upscale.\\n"
+                "Cost grows with the square of the scale.\\n"
+                "Match display uses your monitor's full resolution.\\n"
+                "Applies when the game starts.\\n"
+                "Auto renders at your monitor's resolution and steps down\\n"
+                "when the game would miss frames, then back up.\\n"
+                "Netplay: your view only; other players are unaffected."]])
+set(_new_resolution_help [=[
+                "Selects the output scale for a compatible Mesen HD texture pack.\\n"
+                "Pack resolution uses the pack's original scale.\\n"
+                "Higher scales require more GPU memory and rendering work.\\n"
+                "The native 256x240 NES hardware image remains unchanged.\\n"
+                "Applies when the game starts."]])
+string(FIND "\${_launcher_imgui_source}" "\${_old_resolution_help}" _resolution_help_at)
+if(NOT _resolution_help_at EQUAL -1)
+    string(REPLACE "\${_old_resolution_help}" "\${_new_resolution_help}" _launcher_imgui_source "\${_launcher_imgui_source}")
+else()
+    string(FIND "\${_launcher_imgui_source}" "Selects the output scale for a compatible Mesen HD texture pack." _resolution_help_new_at)
+    if(_resolution_help_new_at EQUAL -1)
+        message(FATAL_ERROR "Cannot patch recomp-ui launcher: internal resolution help text changed.")
+    endif()
+endif()
+
+if(NOT _launcher_imgui_source STREQUAL _launcher_imgui_original)
+    file(WRITE "\${_launcher_imgui}" "\${_launcher_imgui_source}")
 endif()
 
 message(STATUS "Excitebike: in-game Display → View mode registered")
