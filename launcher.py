@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from pathlib import Path, PurePosixPath
 import queue
@@ -103,6 +104,23 @@ def clear_macos_quarantine(paths: tuple[Path, ...]) -> None:
             )
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def game_executable(build_root: Path) -> Path:
+    candidates = (
+        (build_root / "Release" / "ExcitebikeRecomp.exe", build_root / "ExcitebikeRecomp.exe")
+        if os.name == "nt"
+        else (build_root / "ExcitebikeRecomp",)
+    )
+    return next((candidate for candidate in candidates if candidate.is_file()), candidates[0])
+
+
 class ExcitebikeBuilder:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
@@ -125,7 +143,7 @@ class ExcitebikeBuilder:
         heading.pack(anchor=tk.W)
         subtitle = ttk.Label(
             outer,
-            text="Build a native version on this computer using a ROM you supply.",
+            text="Build a native version using your own ROM. Successful builds are reused on later launches when the ROM and bundled project version match.",
             wraplength=740,
         )
         subtitle.pack(anchor=tk.W, pady=(3, 14))
@@ -249,7 +267,8 @@ class ExcitebikeBuilder:
             data_root.mkdir(parents=True, exist_ok=True)
             project_root = data_root / "project"
             build_root = data_root / "build"
-            digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+            digest = sha256_file(archive)
+            rom_digest = sha256_file(rom)
             marker = data_root / "payload-sha256.txt"
             old_digest = marker.read_text(encoding="utf-8").strip() if marker.exists() else ""
             if old_digest != digest or not (project_root / "CMakeLists.txt").is_file():
@@ -257,6 +276,32 @@ class ExcitebikeBuilder:
                 safe_extract_payload(archive, project_root)
                 marker.write_text(digest, encoding="utf-8")
 
+            state_path = data_root / "build-state.json"
+            try:
+                build_state = json.loads(state_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                build_state = {}
+
+            game = game_executable(build_root)
+            cache_matches = (
+                build_state.get("payload_sha256") == digest
+                and build_state.get("rom_sha256") == rom_digest
+                and game.is_file()
+            )
+            if cache_matches:
+                self._emit(
+                    "log",
+                    "A matching native build already exists. Skipping CMake configuration and compilation.",
+                )
+                self._emit("log", "Starting the existing Excitebike build…")
+                subprocess.Popen([str(game), str(rom.resolve())], cwd=str(build_root))
+                self._emit("done", "reused")
+                return
+
+            self._emit(
+                "log",
+                "No matching completed build was found. Preparing tools and compiling this ROM…",
+            )
             tools_root = project_root / ".tools"
             if sys.platform == "darwin":
                 self._emit("log", "Clearing Gatekeeper quarantine only from the bundled, checksum-verified developer tools…")
@@ -292,14 +337,17 @@ class ExcitebikeBuilder:
                 project_root,
             )
 
-            if os.name == "nt":
-                game = build_root / "Release" / "ExcitebikeRecomp.exe"
-                if not game.is_file():
-                    game = build_root / "ExcitebikeRecomp.exe"
-            else:
-                game = build_root / "ExcitebikeRecomp"
+            game = game_executable(build_root)
             if not game.is_file():
                 raise RuntimeError("Build completed but the ExcitebikeRecomp executable was not found.")
+
+            new_state = {
+                "payload_sha256": digest,
+                "rom_sha256": rom_digest,
+            }
+            temporary_state = state_path.with_suffix(".json.tmp")
+            temporary_state.write_text(json.dumps(new_state, indent=2) + "\n", encoding="utf-8")
+            temporary_state.replace(state_path)
 
             self._emit("log", "Build succeeded. Starting Excitebike…")
             subprocess.Popen([str(game), str(rom.resolve())], cwd=str(build_root), env=environment)
@@ -321,6 +369,9 @@ class ExcitebikeBuilder:
                     if value == "success":
                         self.status.set("Build complete. Excitebike has been launched.")
                         self._append("Game launched. Your build and saves remain in the application data folder.")
+                    elif value == "reused":
+                        self.status.set("Existing build launched. No rebuild was needed.")
+                        self._append("The saved native game was reused. Your ROM, build and saves remain on this computer.")
                     else:
                         self.status.set("Build failed. Details are shown above.")
                         self._append("The launcher has not deleted your ROM or previous build.")
