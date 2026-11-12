@@ -4,3 +4,6 @@
 [submodule "recomp-ui"]
 	path = recomp-ui
 	url = https://github.com/RetroPortingToolKit/recomp-ui.git
+[submodule "SDL2"]
+	path = SDL2
+	url = https://github.com/libsdl-org/SDL.git
