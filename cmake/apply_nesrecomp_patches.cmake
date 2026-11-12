@@ -265,63 +265,63 @@ endif()
 # Give the generic resolution-vocabulary control the accurate title and help
 # for this host: it selects the Mesen HD-pack output scale, not NES framebuffer
 # or generic game-internal resolution.
-set(_launcher_imgui "\${NESRECOMP_RECOMP_UI}/src/common/backends/imgui/launcher_imgui.cpp")
-if(NOT EXISTS "\${_launcher_imgui}")
-    message(FATAL_ERROR "Pinned recomp-ui launcher renderer is missing: \${_launcher_imgui}")
+set(_launcher_imgui "${NESRECOMP_RECOMP_UI}/src/common/backends/imgui/launcher_imgui.cpp")
+if(NOT EXISTS "${_launcher_imgui}")
+    message(FATAL_ERROR "Pinned recomp-ui launcher renderer is missing: ${_launcher_imgui}")
 endif()
-file(READ "\${_launcher_imgui}" _launcher_imgui_source)
-set(_launcher_imgui_original "\${_launcher_imgui_source}")
+file(READ "${_launcher_imgui}" _launcher_imgui_source)
+set(_launcher_imgui_original "${_launcher_imgui_source}")
 
-set(_old_resolution_label "settings_fit_w(\\"Internal resolution\\", th, settings_widest_text(")
-set(_new_resolution_label "settings_fit_w(\\"HD resolution\\", th, settings_widest_text(")
-string(FIND "\${_launcher_imgui_source}" "\${_old_resolution_label}" _resolution_label_at)
+set(_old_resolution_label "settings_fit_w(\"Internal resolution\", th, settings_widest_text(")
+set(_new_resolution_label "settings_fit_w(\"HD resolution\", th, settings_widest_text(")
+string(FIND "${_launcher_imgui_source}" "${_old_resolution_label}" _resolution_label_at)
 if(NOT _resolution_label_at EQUAL -1)
-    string(REPLACE "\${_old_resolution_label}" "\${_new_resolution_label}" _launcher_imgui_source "\${_launcher_imgui_source}")
+    string(REPLACE "${_old_resolution_label}" "${_new_resolution_label}" _launcher_imgui_source "${_launcher_imgui_source}")
 else()
-    string(FIND "\${_launcher_imgui_source}" "\${_new_resolution_label}" _resolution_label_new_at)
+    string(FIND "${_launcher_imgui_source}" "${_new_resolution_label}" _resolution_label_new_at)
     if(_resolution_label_new_at EQUAL -1)
         message(FATAL_ERROR "Cannot patch recomp-ui launcher: internal resolution label hook changed.")
     endif()
 endif()
 
-set(_old_resolution_row "row_label_right(\\"Internal resolution\\", th, iw);")
-set(_new_resolution_row "row_label_right(\\"HD resolution\\", th, iw);")
-string(FIND "\${_launcher_imgui_source}" "\${_old_resolution_row}" _resolution_row_at)
+set(_old_resolution_row "row_label_right(\"Internal resolution\", th, iw);")
+set(_new_resolution_row "row_label_right(\"HD resolution\", th, iw);")
+string(FIND "${_launcher_imgui_source}" "${_old_resolution_row}" _resolution_row_at)
 if(NOT _resolution_row_at EQUAL -1)
-    string(REPLACE "\${_old_resolution_row}" "\${_new_resolution_row}" _launcher_imgui_source "\${_launcher_imgui_source}")
+    string(REPLACE "${_old_resolution_row}" "${_new_resolution_row}" _launcher_imgui_source "${_launcher_imgui_source}")
 else()
-    string(FIND "\${_launcher_imgui_source}" "\${_new_resolution_row}" _resolution_row_new_at)
+    string(FIND "${_launcher_imgui_source}" "${_new_resolution_row}" _resolution_row_new_at)
     if(_resolution_row_new_at EQUAL -1)
         message(FATAL_ERROR "Cannot patch recomp-ui launcher: HD resolution row label hook changed.")
     endif()
 endif()
 
 set(_old_resolution_help [=[
-                "Renders the game at this height, not an upscale.\\n"
-                "Cost grows with the square of the scale.\\n"
-                "Match display uses your monitor's full resolution.\\n"
-                "Applies when the game starts.\\n"
-                "Auto renders at your monitor's resolution and steps down\\n"
-                "when the game would miss frames, then back up.\\n"
+                "Renders the game at this height, not an upscale.\n"
+                "Cost grows with the square of the scale.\n"
+                "Match display uses your monitor's full resolution.\n"
+                "Applies when the game starts.\n"
+                "Auto renders at your monitor's resolution and steps down\n"
+                "when the game would miss frames, then back up.\n"
                 "Netplay: your view only; other players are unaffected."]])
 set(_new_resolution_help [=[
-                "Selects the output scale for a compatible Mesen HD texture pack.\\n"
-                "Pack resolution uses the pack's original scale.\\n"
-                "Higher scales require more GPU memory and rendering work.\\n"
-                "The native 256x240 NES hardware image remains unchanged.\\n"
+                "Selects the output scale for a compatible Mesen HD texture pack.\n"
+                "Pack resolution uses the pack's original scale.\n"
+                "Higher scales require more GPU memory and rendering work.\n"
+                "The native 256x240 NES hardware image remains unchanged.\n"
                 "Applies when the game starts."]])
-string(FIND "\${_launcher_imgui_source}" "\${_old_resolution_help}" _resolution_help_at)
+string(FIND "${_launcher_imgui_source}" "${_old_resolution_help}" _resolution_help_at)
 if(NOT _resolution_help_at EQUAL -1)
-    string(REPLACE "\${_old_resolution_help}" "\${_new_resolution_help}" _launcher_imgui_source "\${_launcher_imgui_source}")
+    string(REPLACE "${_old_resolution_help}" "${_new_resolution_help}" _launcher_imgui_source "${_launcher_imgui_source}")
 else()
-    string(FIND "\${_launcher_imgui_source}" "Selects the output scale for a compatible Mesen HD texture pack." _resolution_help_new_at)
+    string(FIND "${_launcher_imgui_source}" "Selects the output scale for a compatible Mesen HD texture pack." _resolution_help_new_at)
     if(_resolution_help_new_at EQUAL -1)
         message(FATAL_ERROR "Cannot patch recomp-ui launcher: internal resolution help text changed.")
     endif()
 endif()
 
 if(NOT _launcher_imgui_source STREQUAL _launcher_imgui_original)
-    file(WRITE "\${_launcher_imgui}" "\${_launcher_imgui_source}")
+    file(WRITE "${_launcher_imgui}" "${_launcher_imgui_source}")
 endif()
 
 message(STATUS "Excitebike: in-game Display → View mode registered")
