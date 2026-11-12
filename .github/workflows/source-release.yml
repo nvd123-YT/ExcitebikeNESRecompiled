@@ -61,11 +61,19 @@ jobs:
           $Vs = & $VsWhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           if (-not $Vs) { throw "Visual Studio C++ x64 tools are missing." }
 
-      - name: Create synthetic NROM test cartridge
+      - name: Create synthetic NROM test cartridge (macOS/Linux)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           PYTHON="$(cat .tools/python-path.txt)"
           "$PYTHON" tests/create_smoke_rom.py --output "$RUNNER_TEMP/excitebike-ci-smoke.nes"
+
+      - name: Create synthetic NROM test cartridge (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python tests/create_smoke_rom.py --output (Join-Path $env:RUNNER_TEMP "excitebike-ci-smoke.nes")
+          if ($LASTEXITCODE -ne 0) { throw "Fixture generation failed: $LASTEXITCODE" }
 
       - name: Configure graphical runner and recomp-ui (macOS/Linux)
         if: runner.os != 'Windows'
