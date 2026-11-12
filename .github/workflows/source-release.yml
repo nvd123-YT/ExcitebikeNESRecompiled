@@ -11,8 +11,8 @@ permissions:
 
 jobs:
   validate:
-    name: Validate (${ matrix.name })
-    runs-on: ${ matrix.os }
+    name: Validate (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -132,11 +132,12 @@ jobs:
 
       - name: Create a new release for this push
         env:
-          GH_TOKEN: ${ github.token }
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          TAG="source-${ github.run_number }-${ github.run_attempt }-${ github.sha }"
-          TITLE="Source build #${ github.run_number } (${ github.sha } | cut -c1-7)"
+          TAG="source-$GITHUB_RUN_NUMBER-$GITHUB_RUN_ATTEMPT-$GITHUB_SHA"
+          SHORT_SHA="$(printf '%s' "$GITHUB_SHA" | cut -c1-7)"
+          TITLE="Source build #$GITHUB_RUN_NUMBER ($SHORT_SHA)"
           NOTES="Cross-platform source snapshot for ExcitebikeNESRecompiled.
 
 This release includes the project source and pinned build dependencies, plus scripts that bootstrap portable CMake and Python. It does not include an Excitebike ROM, ROM-derived native game code, or a playable game binary. Supply your own compatible ROM and build locally using README.md.
