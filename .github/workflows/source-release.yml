@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: platform-release-${{ github.ref }}
+  group: platform-release-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
