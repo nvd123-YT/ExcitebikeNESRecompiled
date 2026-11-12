@@ -4,6 +4,10 @@ A cross-platform **local-build launcher** for Excitebike (NES), based on [NESRec
 
 > **Bring your own ROM.** The downloadable applications do not contain an Excitebike ROM, ROM-derived generated C source, or a prebuilt playable game. Open the platform launcher, select a compatible `.nes` ROM that you are legally entitled to use, and it will generate and compile the native game locally.
 
+## ROM identity verification
+
+The launcher verifies the header, Mapper 0, exact PRG and CHR sizes, separate PRG/CHR CRC-32 values, the combined ROM CRC-32, and the combined SHA-1 against the known clean **Japan / USA (NTSC)** cartridge image. A matching filename or Mapper 0 alone is not enough; modified ROM hacks and unlisted revisions are rejected.
+
 ## Separate platform downloads
 
 Every successful push to `main` runs the three platform builds. After all three succeed, GitHub creates a **new release** containing three separate assets:

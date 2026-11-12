@@ -15,6 +15,8 @@ import zipfile
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
+from rom_identity import RomIdentityError, identify_nes_rom
+
 
 APP_TITLE = "Excitebike Recompiled Builder"
 APP_ID = "ExcitebikeRecomp"
@@ -215,16 +217,9 @@ class ExcitebikeBuilder:
             messagebox.showerror(APP_TITLE, "Select an existing .nes ROM first.")
             return
         try:
-            with rom.open("rb") as source:
-                header = source.read(4)
-        except OSError as error:
-            messagebox.showerror(APP_TITLE, "Could not read the selected ROM: " + str(error))
-            return
-        if header != b"NES\x1a":
-            messagebox.showerror(
-                APP_TITLE,
-                "The selected file does not have a valid iNES header. Select a compatible .nes ROM.",
-            )
+            identity = identify_nes_rom(rom, "excitebike")
+        except RomIdentityError as error:
+            messagebox.showerror(APP_TITLE, str(error))
             return
 
         self.running = True
@@ -233,6 +228,7 @@ class ExcitebikeBuilder:
         self.status.set("Preparing bundled sources and tools…")
         self._append("")
         self._append("Selected ROM: " + str(rom))
+        self._append(f"Verified game: {identity.title} ({identity.region})")
         threading.Thread(target=self._build_worker, args=(rom,), daemon=True).start()
 
     def _emit(self, kind: str, value: object) -> None:
