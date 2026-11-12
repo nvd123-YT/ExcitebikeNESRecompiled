@@ -1,0 +1,31 @@
+# Local dependencies (submodules themselves are tracked; only nested build output is ignored)
+/nesrecomp/build/
+/recomp-ui/build/
+
+# CMake and compiler output
+/build/
+/build-*/
+/cmake-build-*/
+/CMakeFiles/
+/CMakeCache.txt
+/compile_commands.json
+/generated/
+
+# ROMs, disk images, local saves and runtime configuration
+*.nes
+*.unf
+*.unif
+*.fds
+*.qd
+*.rom
+*.sav
+*.cycstate
+config.ini
+keybinds.ini
+*.log
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
