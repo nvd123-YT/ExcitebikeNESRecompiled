@@ -44,10 +44,22 @@ jobs:
         shell: bash
         run: bash setup.sh
 
-      - name: Bootstrap portable CMake and Python (Windows)
+      - name: Set up Python for Windows CI
         if: runner.os == 'Windows'
-        shell: cmd
-        run: setup.bat
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify Windows CMake and Visual Studio
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake --version
+          python --version
+          $VsWhere = Join-Path ([Environment]::GetEnvironmentVariable("ProgramFiles(x86)")) "Microsoft Visual Studio/Installer/vswhere.exe"
+          if (-not (Test-Path $VsWhere)) { throw "Visual Studio Build Tools are missing." }
+          $Vs = & $VsWhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $Vs) { throw "Visual Studio C++ x64 tools are missing." }
 
       - name: Create synthetic NROM test cartridge
         shell: bash
@@ -82,19 +94,15 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $CMake = (Get-Content -Path ".tools/cmake-path.txt" -Raw).Trim()
-          $Python = (Get-Content -Path ".tools/python-path.txt" -Raw).Trim()
-          $env:PATH = "$(Split-Path $Python);$env:PATH"
           $Rom = Join-Path $env:RUNNER_TEMP "excitebike-ci-smoke.nes"
-          & $CMake -S . -B build-ci "-DNESRECOMP_ROM=$Rom"
+          cmake -S . -B build-ci "-DNESRECOMP_ROM=$Rom"
           if ($LASTEXITCODE -ne 0) { throw "CMake configure failed: $LASTEXITCODE" }
 
       - name: Build graphical runner and recomp-ui (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $CMake = (Get-Content -Path ".tools/cmake-path.txt" -Raw).Trim()
-          & $CMake --build build-ci --config Release --parallel 4
+          cmake --build build-ci --config Release --parallel 4
           if ($LASTEXITCODE -ne 0) { throw "Build failed: $LASTEXITCODE" }
 
       - name: Run native-code smoke test (Windows)
