@@ -35,8 +35,19 @@ def main() -> int:
 
     for path in candidates:
         dimensions = png_dimensions(path)
-        if dimensions == (args.width, args.height):
-            print(f"Verified widescreen output: {path} ({dimensions[0]}x{dimensions[1]})")
+        width, height = dimensions
+        scale_x = width // args.width if args.width > 0 else 0
+        scale_y = height // args.height if args.height > 0 else 0
+        if (
+            scale_x >= 1
+            and scale_x == scale_y
+            and width == args.width * scale_x
+            and height == args.height * scale_y
+        ):
+            print(
+                f"Verified widescreen output: {path} "
+                f"({width}x{height}, {scale_x}x logical {args.width}x{args.height})"
+            )
             return 0
     observed = ", ".join(f"{p.name}={png_dimensions(p)[0]}x{png_dimensions(p)[1]}" for p in candidates)
     raise SystemExit(
