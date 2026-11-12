@@ -6,14 +6,22 @@
 /recomp-ui/build/
 /SDL2/build/
 
-# CMake and compiler output
+# CMake, compiler and launcher packaging output
 /build/
 /build-*/
+/build-ci/
 /cmake-build-*/
 /CMakeFiles/
 /CMakeCache.txt
 /compile_commands.json
 /generated/
+/payload.zip
+/dist/
+/pyinstaller-work/
+/AppDir/
+/dmg-staging/
+/release/
+/*.spec
 
 # ROMs, disk images, local saves and runtime configuration
 *.nes
