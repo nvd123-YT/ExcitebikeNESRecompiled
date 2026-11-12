@@ -52,6 +52,8 @@ include("${NESRECOMP_ROOT}/runner/cyc/project.cmake")
 nesrecomp_add_cycle_game(ExcitebikeRecomp
     ROM "${NESRECOMP_ROM}"
     GAME_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/game.toml"
+    MODS
+    GAME_ID "excitebike-nes"
 )
 
 get_target_property(_excitebike_sdl ExcitebikeRecomp NESRECOMP_CYC_SDL)

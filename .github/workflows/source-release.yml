@@ -98,6 +98,7 @@ jobs:
         run: |
           CMAKE="$(cat .tools/cmake-path.txt)"
           "$CMAKE" --build build-ci --parallel 4
+          python tools/verify_bundled_packages.py --build-dir build-ci
           ./build-ci/ExcitebikeRecomp "$RUNNER_TEMP/excitebike-ci-smoke.nes" --frames 120
 
       - name: Configure native test build (Windows)
@@ -116,6 +117,8 @@ jobs:
           $CMake = (Get-Content .tools/cmake-path.txt -Raw).Trim()
           & $CMake --build build-ci --config Release --parallel 4
           if ($LASTEXITCODE -ne 0) { throw "Native build failed: $LASTEXITCODE" }
+          python tools/verify_bundled_packages.py --build-dir build-ci
+          if ($LASTEXITCODE -ne 0) { throw "Bundled NESRecomp packages verification failed: $LASTEXITCODE" }
           $Rom = Join-Path $env:RUNNER_TEMP "excitebike-ci-smoke.nes"
           $Exe = Join-Path $PWD "build-ci/Release/ExcitebikeRecomp.exe"
           & $Exe $Rom --frames 120

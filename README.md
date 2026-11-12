@@ -21,9 +21,11 @@ Each platform package contains the launcher UI and its local-build resources:
 - A bundled Python runtime for the launcher.
 - Portable CMake.
 - A managed Python runtime for build-time tooling.
-- Pinned NESRecomp, recomp-ui, and SDL2 source trees.
-- The Excitebike CMake integration and game configuration.
-- SDL2 is built statically as part of the local game build.
+- Full pinned NESRecomp and recomp-ui source trees, including NESRecomp's mod runtime/package generators and recomp-ui's Dear ImGui sources and launcher assets.
+- SDL2 source, built statically as part of the local game build.
+- Excitebike's named game configuration and bundled Mods integration.
+
+The compiled game identifies itself as **Excitebike** in recomp-ui and its window title. Its Mods screen includes two NESRecomp packages generated for the selected ROM's exact cartridge identity: **Replay Capture** (enabled by default; recordings stay local) and **Twitch Chat** (optional and disabled by default; requires the separate chat bridge).
 
 The launcher extracts these resources into the user's application data directory, clears macOS Gatekeeper quarantine only from the bundled, checksum-verified CMake/Python tool folders, asks for a local ROM, runs CMake, compiles the native game, and starts it. The build directory and game saves stay on the user's computer and are not removed when the launcher closes.
 
@@ -42,7 +44,7 @@ The launcher reports build errors in its output window. CMake and Python do not 
 1. Download the asset matching your operating system.
 2. Open the DMG and move `ExcitebikeRecomp.app` to Applications on macOS. On Windows, run the EXE. On Linux, make the AppImage executable and open it.
 3. Select your own compatible Excitebike `.nes` ROM in the launcher.
-4. Choose **Build Excitebike & Play**. The first local build compiles the pinned runtime and generated game code and can take several minutes.
+4. Choose **Build Excitebike & Play**. The first local build compiles the pinned runtime and generated game code and can take several minutes. Later launches reuse that build when the same ROM and bundled project version are selected.
 
 On macOS, the app is not Developer ID notarized. If Gatekeeper blocks it, use Finder's Open context-menu action and review the macOS security prompt.
 

@@ -11,6 +11,13 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 DEPENDENCIES = ("nesrecomp", "recomp-ui", "SDL2")
 ROOT_FILES = ("CMakeLists.txt", "game.toml")
+REQUIRED_DEPENDENCY_FILES = (
+    "nesrecomp/runner/cyc/project.cmake",
+    "nesrecomp/runner/cyc/cyc.cmake",
+    "recomp-ui/recomp_ui.cmake",
+    "recomp-ui/src/recomp_launcher.h",
+    "recomp-ui/src/third_party/imgui/imgui.cpp",
+)
 TOOL_DIRECTORIES = (".tools/cmake", ".tools/python")
 SKIP_DIRECTORIES = {
     ".git", "__pycache__", ".pytest_cache", ".mypy_cache", "node_modules",
@@ -56,6 +63,7 @@ def main() -> int:
     required = [ROOT / name for name in ROOT_FILES]
     required.extend(ROOT / name for name in DEPENDENCIES)
     required.extend(ROOT / name for name in TOOL_DIRECTORIES)
+    required.extend(ROOT / name for name in REQUIRED_DEPENDENCY_FILES)
     missing = [str(path.relative_to(ROOT)) for path in required if not path.exists()]
     if missing:
         raise SystemExit("Cannot package launcher; required source/tools missing: " + ", ".join(missing))
@@ -85,6 +93,9 @@ def main() -> int:
         "Bundled build tools: portable CMake and managed Python runtime.",
         "Platform compiler/SDK is supplied by the host operating system.",
         "",
+        "The full NESRecomp and recomp-ui source trees are bundled, including the NESRecomp mod runtime/package generators and recomp-ui launcher assets/ImGui sources.",
+        "The game build stages NESRecomp Replay Capture (default on) and Twitch Chat (default off) manifests beside the generated executable.",
+        "",
         "Pinned dependency revisions:",
     ]
     for name in DEPENDENCIES:
@@ -108,6 +119,17 @@ def main() -> int:
         if unsafe:
             args.output.unlink(missing_ok=True)
             raise SystemExit("Refusing to bundle ROM/save-like files: " + ", ".join(unsafe[:5]))
+        required_members = {
+            "project/nesrecomp/runner/cyc/project.cmake",
+            "project/nesrecomp/runner/cyc/cyc.cmake",
+            "project/recomp-ui/recomp_ui.cmake",
+            "project/recomp-ui/src/recomp_launcher.h",
+            "project/recomp-ui/src/third_party/imgui/imgui.cpp",
+        }
+        missing_members = sorted(required_members.difference(archive.namelist()))
+        if missing_members:
+            args.output.unlink(missing_ok=True)
+            raise SystemExit("The payload is missing required NESRecomp/recomp-ui package files: " + ", ".join(missing_members))
 
     print(f"Created builder payload with {count} source/tool files.")
     print(f"Payload size: {args.output.stat().st_size:,} bytes")
