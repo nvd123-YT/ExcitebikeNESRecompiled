@@ -76,7 +76,7 @@ def main() -> int:
     for name in ROOT_FILES:
         entries.append((ROOT / name, f"project/{name}"))
 
-    for name in ("cmake", "nesrecomp", "recomp-ui", "SDL2"):
+    for name in ("cmake", "src", "nesrecomp", "recomp-ui", "SDL2"):
         for source in iter_files(ROOT / name):
             relative = source.relative_to(ROOT)
             entries.append((source, "project/" + relative.as_posix()))

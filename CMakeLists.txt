@@ -45,6 +45,8 @@ add_subdirectory("${SDL2_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/_deps/sdl2-build" EXC
 set(SDL2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake/bundled-sdl2" CACHE PATH
     "Bundled SDL2 package bridge" FORCE)
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/apply_nesrecomp_patches.cmake")
+
 # Include at file scope: project.cmake detects the pinned recomp-ui checkout,
 # validates its ROM-picker/runtime-menu ABI, and enables C++ integration.
 include("${NESRECOMP_ROOT}/runner/cyc/project.cmake")
@@ -53,7 +55,9 @@ nesrecomp_add_cycle_game(ExcitebikeRecomp
     ROM "${NESRECOMP_ROM}"
     GAME_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/game.toml"
     MODS
+    HD_PACKS
     GAME_ID "excitebike-nes"
+    HOST_EXTRAS "${CMAKE_CURRENT_SOURCE_DIR}/src/excitebike_host.c"
 )
 
 get_target_property(_excitebike_sdl ExcitebikeRecomp NESRECOMP_CYC_SDL)

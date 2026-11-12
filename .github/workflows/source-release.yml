@@ -124,6 +124,33 @@ jobs:
           & $Exe $Rom --frames 120
           if ($LASTEXITCODE -ne 0) { throw "Native smoke test failed: $LASTEXITCODE" }
 
+      - name: Smoke-test widescreen presentation (macOS/Linux)
+        if: runner.os != 'Windows'
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+          NESRECOMP_NO_LAUNCHER: "1"
+        shell: bash
+        run: |
+          ./build-ci/ExcitebikeRecomp "$RUNNER_TEMP/excitebike-ci-smoke.nes" --widescreen 16:9 --present-out "$RUNNER_TEMP/excitebike-wide.png" --present-every 120 --exit-after 120
+          python tools/verify_widescreen_capture.py "$RUNNER_TEMP/excitebike-wide.png" --width 426 --height 240
+
+      - name: Smoke-test widescreen presentation (Windows)
+        if: runner.os == 'Windows'
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+          NESRECOMP_NO_LAUNCHER: "1"
+        shell: pwsh
+        run: |
+          $Rom = Join-Path $env:RUNNER_TEMP "excitebike-ci-smoke.nes"
+          $Capture = Join-Path $env:RUNNER_TEMP "excitebike-wide.png"
+          $Exe = Join-Path $PWD "build-ci/Release/ExcitebikeRecomp.exe"
+          & $Exe $Rom --widescreen 16:9 --present-out $Capture --present-every 120 --exit-after 120
+          if ($LASTEXITCODE -ne 0) { throw "Widescreen rendering test failed: $LASTEXITCODE" }
+          python tools/verify_widescreen_capture.py $Capture --width 426 --height 240
+          if ($LASTEXITCODE -ne 0) { throw "Widescreen capture verification failed: $LASTEXITCODE" }
+
       - name: Create self-contained ROM-free builder payload
         shell: bash
         run: python tools/package_builder.py --output payload.zip

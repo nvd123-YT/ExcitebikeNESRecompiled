@@ -29,6 +29,19 @@ The compiled game identifies itself as **Excitebike** in recomp-ui and its windo
 
 The launcher extracts these resources into the user's application data directory, clears macOS Gatekeeper quarantine only from the bundled, checksum-verified CMake/Python tool folders, asks for a local ROM, runs CMake, compiles the native game, and starts it. The build directory and game saves stay on the user's computer and are not removed when the launcher closes.
 
+## Video enhancements
+
+The NES still runs its real hardware picture at **256×240**. The game now supplies a wide-view compositor that uses NESRecomp's recorded per-scanline PPU scroll, nametable, CHR and sprite state to draw the surrounding background. It does not stretch the original picture: the central 256×240 gameplay area is copied from the native frame unchanged, while the side margins are an experimental reconstruction. Scene transitions or mid-frame palette effects may therefore leave the extra margins less exact than the original viewport.
+
+- **recomp-ui launcher:** Settings → Widescreen toggles Native / 16:9.
+- **In-game menu:** View mode offers Native, 16:9 Fixed and Adaptive. Adaptive follows the window's aspect ratio, up to the engine's 32:9 limit.
+- **Developer option:** `--widescreen stock|16:9|21:9|32:9|fit` selects a presentation mode directly.
+- **Integer scaling:** remains available for crisp whole-pixel scaling of the original NES image.
+
+### HD texture packs vs. internal resolution
+
+Excitebike also builds NESRecomp's **HD texture-pack renderer**. A compatible, user-supplied Mesen HD pack can contain higher-resolution artwork; the in-game Graphics menu then exposes **HD resolution** (pack resolution or 1× through 64× processing scales). No HD pack is included, and this is not a generic switch that turns the NES's 256×240 hardware framebuffer into an arbitrary 4K/8K framebuffer. Without a compatible pack, the original NES artwork remains native-resolution and integer-scaled.
+
 ## Operating-system requirements
 
 A platform compiler and SDK are still required. These are tightly integrated with each operating system and are not safely distributable as ordinary application resources:
