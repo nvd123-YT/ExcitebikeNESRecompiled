@@ -296,30 +296,37 @@ else()
     endif()
 endif()
 
-set(_old_resolution_help [=[
+set(_old_resolution_tip [=[
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+            ImGui::SetTooltip("%s", ui_text(
                 "Renders the game at this height, not an upscale.\n"
                 "Cost grows with the square of the scale.\n"
                 "Match display uses your monitor's full resolution.\n"
                 "Applies when the game starts.\n"
                 "Auto renders at your monitor's resolution and steps down\n"
                 "when the game would miss frames, then back up.\n"
-                "Netplay: your view only; other players are unaffected."]])
-set(_new_resolution_help [=[
+                "Netplay: your view only; other players are unaffected."));
+        }
+]=])
+set(_new_resolution_tip [=[
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+            ImGui::SetTooltip("%s", ui_text(
                 "Selects the output scale for a compatible Mesen HD texture pack.\n"
                 "Pack resolution uses the pack's original scale.\n"
                 "Higher scales require more GPU memory and rendering work.\n"
                 "The native 256x240 NES hardware image remains unchanged.\n"
-                "Applies when the game starts."]])
-string(FIND "${_launcher_imgui_source}" "${_old_resolution_help}" _resolution_help_at)
-if(NOT _resolution_help_at EQUAL -1)
-    string(REPLACE "${_old_resolution_help}" "${_new_resolution_help}" _launcher_imgui_source "${_launcher_imgui_source}")
+                "Applies when the game starts."));
+        }
+]=])
+string(FIND "${_launcher_imgui_source}" "${_old_resolution_tip}" _resolution_tip_at)
+if(NOT _resolution_tip_at EQUAL -1)
+    string(REPLACE "${_old_resolution_tip}" "${_new_resolution_tip}" _launcher_imgui_source "${_launcher_imgui_source}")
 else()
-    string(FIND "${_launcher_imgui_source}" "Selects the output scale for a compatible Mesen HD texture pack." _resolution_help_new_at)
-    if(_resolution_help_new_at EQUAL -1)
-        message(FATAL_ERROR "Cannot patch recomp-ui launcher: internal resolution help text changed.")
+    string(FIND "${_launcher_imgui_source}" "Selects the output scale for a compatible Mesen HD texture pack." _resolution_tip_new_at)
+    if(_resolution_tip_new_at EQUAL -1)
+        message(FATAL_ERROR "Cannot patch recomp-ui launcher: internal resolution tooltip hook changed.")
     endif()
 endif()
-
 if(NOT _launcher_imgui_source STREQUAL _launcher_imgui_original)
     file(WRITE "${_launcher_imgui}" "${_launcher_imgui_source}")
 endif()
