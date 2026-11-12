@@ -20,6 +20,17 @@ need git
 OS="$(uname -s)"
 ARCH="$(uname -m)"
 
+clear_macos_quarantine() {
+  [ "$OS" = "Darwin" ] || return 0
+  command -v xattr >/dev/null 2>&1 || return 0
+  for tool_dir in "$@"; do
+    if [ -d "$tool_dir" ]; then
+      echo "[macOS] Clearing Gatekeeper quarantine from verified tool folder: $tool_dir"
+      xattr -dr com.apple.quarantine "$tool_dir" 2>/dev/null || true
+    fi
+  done
+}
+
 case "$OS-$ARCH" in
   Darwin-arm64)
     CMAKE_ARCHIVE="cmake-$CMAKE_VERSION-macos-universal.tar.gz"
@@ -64,6 +75,7 @@ if [ -z "$CMAKE_BIN" ]; then
   CMAKE_BIN="$(find "$TOOLS/cmake" -type f -name cmake -perm -111 -print -quit)"
 fi
 [ -x "$CMAKE_BIN" ] || fail "Portable CMake was not found after extraction"
+clear_macos_quarantine "$TOOLS/cmake"
 printf '%s\n' "$CMAKE_BIN" > "$TOOLS/cmake-path.txt"
 "$CMAKE_BIN" --version | head -1
 
@@ -84,6 +96,7 @@ if [ -z "$UV_BIN" ]; then
   UV_BIN="$(find "$TOOLS/uv" -type f -name uv -perm -111 -print -quit)"
 fi
 [ -x "$UV_BIN" ] || fail "Portable uv was not found after extraction"
+clear_macos_quarantine "$TOOLS/uv"
 printf '%s\n' "$UV_BIN" > "$TOOLS/uv-path.txt"
 
 echo "[3/4] Installing managed Python $PYTHON_VERSION into .tools..."
@@ -92,6 +105,7 @@ export UV_PYTHON_BIN_DIR="$TOOLS/bin"
 "$UV_BIN" python install "$PYTHON_VERSION"
 PYTHON_BIN="$("$UV_BIN" python find "$PYTHON_VERSION")"
 [ -x "$PYTHON_BIN" ] || fail "Managed Python executable not found"
+clear_macos_quarantine "$TOOLS/python"
 printf '%s\n' "$PYTHON_BIN" > "$TOOLS/python-path.txt"
 "$PYTHON_BIN" --version
 
@@ -106,15 +120,6 @@ done
 
 if [ ! -x /usr/bin/clang ] && ! command -v cc >/dev/null 2>&1; then
   fail "A native C/C++ compiler is required. Install Xcode Command Line Tools or your platform's compiler."
-fi
-
-if [ "$OS" = "Darwin" ] && command -v xattr >/dev/null 2>&1; then
-  echo "[macOS] Clearing quarantine metadata only from checksum-verified bundled developer tools..."
-  for tool_dir in "$TOOLS/cmake" "$TOOLS/uv" "$TOOLS/python"; do
-    if [ -d "$tool_dir" ]; then
-      xattr -dr com.apple.quarantine "$tool_dir" 2>/dev/null || true
-    fi
-  done
 fi
 
 echo "Bootstrap complete."
