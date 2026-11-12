@@ -1,6 +1,10 @@
-# Local dependencies (submodules themselves are tracked; only nested build output is ignored)
+# Bootstrapped local CMake, uv, managed Python and temporary downloads
+/.tools/
+
+# Submodule-local build output
 /nesrecomp/build/
 /recomp-ui/build/
+/SDL2/build/
 
 # CMake and compiler output
 /build/
