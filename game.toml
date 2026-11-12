@@ -1,0 +1,3 @@
+[game]
+output_prefix = "excitebike"
+cycle_accurate = true
