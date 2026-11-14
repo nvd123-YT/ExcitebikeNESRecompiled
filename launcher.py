@@ -303,7 +303,13 @@ class ExcitebikeBuilder:
     def _emit(self, kind: str, value: object) -> None:
         self.events.put((kind, value))
 
-    def _run_logged(self, command: list[str], environment: dict[str, str], cwd: Path) -> None:
+    def _run_logged(
+        self,
+        command: list[str],
+        environment: dict[str, str],
+        cwd: Path,
+        diagnostic_directory: Path | None = None,
+    ) -> None:
         self._emit("log", "$ " + subprocess.list2cmdline(command))
         process = subprocess.Popen(
             command,
@@ -327,8 +333,9 @@ class ExcitebikeBuilder:
         result = process.wait()
         if result != 0:
             details = "\n".join(tail[-80:])
-            configure_log = cwd / "CMakeFiles" / "CMakeConfigureLog.yaml"
-            error_log = cwd / "CMakeFiles" / "CMakeError.log"
+            diagnostic_root = diagnostic_directory or cwd
+            configure_log = diagnostic_root / "CMakeFiles" / "CMakeConfigureLog.yaml"
+            error_log = diagnostic_root / "CMakeFiles" / "CMakeError.log"
             extra = ""
             if configure_log.is_file():
                 extra += f"\nCMake configure diagnostics: {configure_log}"
@@ -443,7 +450,7 @@ class ExcitebikeBuilder:
                 configure.extend(["-G", generator_name, "-A", "x64"])
 
             self._emit("log", "Configuring the native game build…")
-            self._run_logged(configure, environment, project_root)
+            self._run_logged(configure, environment, project_root, diagnostic_directory=build_root)
 
             jobs = str(max(2, min(4, os.cpu_count() or 4)))
             self._emit("log", "Compiling SDL2, the NES runtime and the generated game code…")
@@ -451,6 +458,7 @@ class ExcitebikeBuilder:
                 [str(cmake), "--build", str(build_root), "--config", "Release", "--parallel", jobs],
                 environment,
                 project_root,
+                diagnostic_directory=build_root,
             )
 
             game = game_executable(build_root)
